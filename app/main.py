@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException, status
 from pydantic import BaseModel
-from sqlalchemy import create_engine, Column, Integer, String
+from sqlalchemy import create_engine, Column, Integer, String, distinct
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from fastapi.responses import JSONResponse
@@ -75,6 +75,22 @@ def get_user(id: int):
         "descripcion": menu.descripcion,
         "praparacion": menu.praparacion,
         "ingredientes": menu.ingredientes.split(',')
+    }
+
+
+@app.get("/categorias")
+def get_categories():
+    # Create a new session
+    db = SessionLocal()
+
+    # Query the database for categorias
+    categorias = db.query(DbMenu.categoria).distinct().all()
+
+    # Close the session
+    db.close()
+
+    return {
+        "categorias": [c[0] for c in categorias]
     }
 
 
