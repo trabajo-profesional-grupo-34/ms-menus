@@ -1,12 +1,13 @@
 from fastapi import FastAPI, HTTPException, status
 from pydantic import BaseModel
+from typing import Optional
 from sqlalchemy import create_engine, Column, Integer, String, distinct
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from fastapi.responses import JSONResponse
 
 
-SQLALCHEMY_DATABASE_URL = "postgresql://postgres:pass@localhost/dev"
+SQLALCHEMY_DATABASE_URL = "postgresql://alex:usurero24@localhost/dev"
 engine = create_engine(SQLALCHEMY_DATABASE_URL)
 
 # Create a session
@@ -32,12 +33,12 @@ class DbMenu(Base):
 
 
 class Menu(BaseModel):
-    nombre: str
-    categoria: str
-    descripcion: str
-    praparacion: str
-    ingredientes: list
-    foto: str
+    nombre: Optional[str]
+    categoria: Optional[str]
+    descripcion: Optional[str]
+    praparacion: Optional[str]
+    ingredientes: Optional[list]
+    foto: Optional[str]
 
 
 app = FastAPI()
@@ -163,3 +164,33 @@ def get_categories():
         "categorias": [c[0] for c in categorias]
     }
 
+@app.put("/menu/{id}")
+def update_menu(id: int, menu_update: Menu):
+    # Create a new session
+    db = SessionLocal()
+
+    # Query the database for categorias
+    menu = db.query(DbMenu).filter(DbMenu.id == id).first()
+    if menu is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Menu not found")
+
+    for field, value in menu_update.dict(exclude_unset=True).items():
+        if field == "ingredientes":
+            value = ','.join(value)
+
+        setattr(menu, field, value)
+
+    db.commit()
+    db.refresh(menu)
+
+    # Close the session
+    db.close()
+
+    return {
+        "nombre": menu.nombre,
+        "categoria": menu.categoria,
+        "descripcion": menu.descripcion,
+        "praparacion": menu.praparacion,
+        "ingredientes": menu.ingredientes.split(','),
+        "id": menu.id
+    }

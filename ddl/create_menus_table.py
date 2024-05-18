@@ -3,7 +3,7 @@ from sqlalchemy import create_engine, MetaData, Table, Column, Integer, String
 
 
 # Define the SQLAlchemy connection URL
-DATABASE_URL = "postgresql://postgres:pass@localhost/dev"
+DATABASE_URL = "postgresql://alex:usurero24@localhost/dev"
 
 # Create an engine
 engine = create_engine(DATABASE_URL)
