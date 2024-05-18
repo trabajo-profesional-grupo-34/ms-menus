@@ -6,7 +6,7 @@ from sqlalchemy.orm import sessionmaker
 from fastapi.responses import JSONResponse
 
 
-SQLALCHEMY_DATABASE_URL = "postgresql://alex:usurero24@localhost/dev"
+SQLALCHEMY_DATABASE_URL = "postgresql://postgres:pass@localhost/dev"
 engine = create_engine(SQLALCHEMY_DATABASE_URL)
 
 # Create a session
@@ -23,17 +23,21 @@ class DbMenu(Base):
     __table_args__ = {"schema": "taca"}
 
     id = Column(Integer, primary_key=True, index=True)
+    nombre = Column(String, unique=False, index=True)
     categoria = Column(String, unique=True, index=True)
     descripcion = Column(String, unique=True, index=True)
     praparacion = Column(String, unique=True, index=True)
     ingredientes = Column(String, unique=True, index=True)
+    foto = Column(String, unique=False, index=True)
 
 
 class Menu(BaseModel):
+    nombre: str
     categoria: str
     descripcion: str
     praparacion: str
     ingredientes: list
+    foto: str
 
 
 app = FastAPI()
@@ -55,7 +59,7 @@ def hello_name(name: str = "World"):
 
 
 @app.get("/menus/{id}")
-def get_user(id: int):
+def get_menu(id: int):
     # Create a new session
     db = SessionLocal()
 
@@ -71,40 +75,28 @@ def get_user(id: int):
 
     return {
         "id": menu.id,
+        "nombre": menu.nombre,
         "categoria": menu.categoria,
         "descripcion": menu.descripcion,
         "praparacion": menu.praparacion,
-        "ingredientes": menu.ingredientes.split(',')
-    }
-
-
-@app.get("/categorias")
-def get_categories():
-    # Create a new session
-    db = SessionLocal()
-
-    # Query the database for categorias
-    categorias = db.query(DbMenu.categoria).distinct().all()
-
-    # Close the session
-    db.close()
-
-    return {
-        "categorias": [c[0] for c in categorias]
+        "ingredientes": menu.ingredientes.split(','),
+        "foto": menu.foto
     }
 
 
 @app.post("/menus", status_code=201)
-def create_user(menu: Menu):
+def create_menu(menu: Menu):
     # Create a new session
     db = SessionLocal()
 
     # Create a new User object
     new_menu = DbMenu(
+        nombre=menu.nombre,
         categoria=menu.categoria, 
         descripcion=menu.descripcion,
         praparacion=menu.praparacion,
-        ingredientes=','.join(menu.ingredientes)
+        ingredientes=','.join(menu.ingredientes),
+        foto=menu.foto
     )
 
     # Add the new user to the session
@@ -120,6 +112,7 @@ def create_user(menu: Menu):
     db.close()
 
     return {
+        "nombre": new_menu.nombre,
         "categoria": new_menu.categoria,
         "descripcion": new_menu.descripcion,
         "praparacion": new_menu.praparacion,
@@ -129,7 +122,7 @@ def create_user(menu: Menu):
 
 
 @app.delete("/menus/{id}", status_code=200)
-def delete_user(id: int):
+def delete_menu(id: int):
     # Create a new session
     db = SessionLocal()
 
@@ -153,3 +146,20 @@ def delete_user(id: int):
     return {
         "message": "Menu deleted successfully"
     }
+
+
+@app.get("/categorias")
+def get_categories():
+    # Create a new session
+    db = SessionLocal()
+
+    # Query the database for categorias
+    categorias = db.query(DbMenu.categoria).distinct().all()
+
+    # Close the session
+    db.close()
+
+    return {
+        "categorias": [c[0] for c in categorias]
+    }
+
