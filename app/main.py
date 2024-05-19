@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, status
+from fastapi import FastAPI, HTTPException, status, Query
 from pydantic import BaseModel
 from typing import Optional
 from sqlalchemy import create_engine, Column, Integer, String, distinct
@@ -40,6 +40,11 @@ class Menu(BaseModel):
     ingredientes: Optional[list]
     foto: Optional[str]
 
+class MenuListResponse(BaseModel):
+    users: list[Menu]
+    total: int
+    page: int
+    per_page: int
 
 app = FastAPI()
 
@@ -57,6 +62,40 @@ def read_root():
 @app.get("/hello/{name}")
 def hello_name(name: str = "World"):
     return {"message": f"Hello, {name}!"}
+
+
+@app.get("/menus")
+def get_menus(
+    page: int = Query(1, ge=1),
+    per_page: int = Query(10, ge=1)
+):
+    # Create a new session
+    db = SessionLocal()
+
+    # Query the database for the user with the specified ID
+    offset = (page - 1) * per_page
+    menus_query = db.query(DbMenu).offset(offset).limit(per_page)
+    menus = [
+        Menu(
+            nombre=m.nombre, 
+            categoria=m.categoria, 
+            descripcion=m.descripcion, 
+            praparacion=m.praparacion, 
+            ingredientes=m.ingredientes.split(','), 
+            foto=m.foto
+        ) for m in menus_query.all()
+    ]
+    total_menus = db.query(DbMenu).count()
+
+    # Close the session
+    db.close()
+
+    return MenuListResponse(
+        users=menus,
+        total=total_menus,
+        page=page,
+        per_page=per_page
+    )
 
 
 @app.get("/menus/{id}")
