@@ -8,7 +8,7 @@ Then execute the following steps in a terminal:
 3. Create dev database: `CREATE DATABASE dev;`
 4. Grant permissions: `GRANT ALL PRIVILEGES ON DATABASE dev TO username;`
 5. Exit postgress terminal and execute in the terminal: `psql -U username -d dev -c "CREATE SCHEMA taca;"`
-6. Create menus table using: `python3 ddl/create_menus_table.py`
+6. Create menus table using: `python3 ddl/create_table.py`
 
 ## Run project
 Execute the following commands in the root path:
