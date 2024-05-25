@@ -16,7 +16,7 @@ menu = Table(
     'menu', metadata,
     Column('id', Integer, primary_key=True),
     Column('nombre', String, unique=False, index=True),
-    Column('categoria_id', String, unique=False, index=True),
+    Column('categoria_id', Integer, unique=False, index=True),
     Column('descripcion', String, unique=False, index=True),
     Column('preparacion', String, unique=False, index=True),
     Column('ingredientes', String, unique=False, index=True),

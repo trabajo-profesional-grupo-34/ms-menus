@@ -29,6 +29,8 @@ EMOTION_TO_VALENCE_AROUSAL = {
     "neutral": (0.0, 0.0, 0)
 }
 
+VALENCE_AROUSAL_TO_EMOTION = {v: k for k, v in EMOTION_TO_VALENCE_AROUSAL.items()}
+
 # Define the Menu model
 class DbMenu(Base):
     __tablename__ = "menu"
@@ -36,7 +38,7 @@ class DbMenu(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     nombre = Column(String, unique=False, index=True)
-    categoria = Column(String, unique=False, index=True)
+    categoria_id = Column(Integer, unique=False, index=True)
     descripcion = Column(String, unique=False, index=True)
     preparacion = Column(String, unique=False, index=True)
     ingredientes = Column(String, unique=False, index=True)
@@ -72,7 +74,7 @@ class DbExperiencia(Base):
 
 class Menu(BaseModel):
     nombre: Optional[str]
-    categoria: Optional[str]
+    categoria_id: Optional[int]
     descripcion: Optional[str]
     preparacion: Optional[str]
     ingredientes: Optional[list]
@@ -83,8 +85,8 @@ class Menu(BaseModel):
     numero_experiencias: Optional[int]
 
 class Experiencia(BaseModel):
-    usuario_id: Optional[str]
-    menu_id: Optional[str]
+    usuario_id: Optional[int]
+    menu_id: Optional[int]
     emocion: Optional[dict]
     emocion_arousal: Optional[float]
     emocion_valencia: Optional[float]
@@ -107,9 +109,7 @@ class Categoria(BaseModel):
 app = FastAPI()
 
 def get_emocion_resultante(valence, arousal):
-    # Inverted dictionary
-    valence_arousal_to_emotion = {v: k for k, v in EMOTION_TO_VALENCE_AROUSAL.items()}
-    for (v, a, diff), emotion in valence_arousal_to_emotion.items():
+    for (v, a, diff), emotion in VALENCE_AROUSAL_TO_EMOTION.items():
         max_angle = calculate_angle(v, a)
         angle = calculate_angle(valence, arousal)
         if max_angle - diff < angle and angle <= max_angle:
@@ -126,6 +126,12 @@ def calculate_angle(x, y):
     angle_degrees = math.degrees(angle_radians)
     
     return angle_degrees
+
+def update_average(current_average, count, new_value):
+    # Calculate the new average
+    new_average = (current_average * count + new_value) / (count + 1)
+    
+    return new_average
 
 
 @app.exception_handler(HTTPException)
@@ -157,7 +163,7 @@ def get_menus(
     menus = [
         Menu(
             nombre=m.nombre, 
-            categoria=m.categoria, 
+            categoria_id=m.categoria_id, 
             descripcion=m.descripcion, 
             preparacion=m.preparacion, 
             ingredientes=m.ingredientes.split(','), 
@@ -199,7 +205,7 @@ def get_menu(id: int):
     return {
         "id": menu.id,
         "nombre": menu.nombre,
-        "categoria": menu.categoria,
+        "categoria": menu.categoria_id,
         "descripcion": menu.descripcion,
         "preparacion": menu.preparacion,
         "ingredientes": menu.ingredientes.split(','),
@@ -235,14 +241,23 @@ def create_experiencia(experiencia: Experiencia):
     # Add the new user to the session
     db.add(new_exp)
 
+    menu = db.query(DbMenu).filter(DbMenu.id == new_exp.menu_id).first()
+    menu.valencia_resultante = update_average(menu.valencia_resultante, menu.numero_experiencias, new_exp.valencia_resultante)
+    menu.arousal_resultante = update_average(menu.arousal_resultante, menu.numero_experiencias, new_exp.arousal_resultante)
+    menu.emocion_resultante = get_emocion_resultante(menu.valencia_resultante, menu.arousal_resultante)
+    menu.numero_experiencias = menu.numero_experiencias + 1
+
+
     # Commit the session to persist the changes to the database
     db.commit()
 
-    # Refresh the new user object to get the updated id
+    # Refresh the new experience object and update the menu calification 
     db.refresh(new_exp)
+    db.refresh(menu)
 
     # Close the session
     db.close()
+
 
     return {
         "id": new_exp.id,
@@ -272,6 +287,11 @@ def create_menu(menu: Menu):
 
         setattr(new_menu, field, value)
 
+    new_menu.arousal_resultante = 0
+    new_menu.valencia_resultante = 0
+    new_menu.emocion_resultante = "neutral"
+    new_menu.numero_experiencias = 0
+
     # Add the new user to the session
     db.add(new_menu)
 
@@ -287,7 +307,7 @@ def create_menu(menu: Menu):
     return {
         "id": new_menu.id,
         "nombre": new_menu.nombre,
-        "categoria": new_menu.categoria,
+        "categoria_id": new_menu.categoria_id,
         "descripcion": new_menu.descripcion,
         "preparacion": new_menu.preparacion,
         "ingredientes": new_menu.ingredientes.split(','),
@@ -331,7 +351,7 @@ def get_categories(categoria2):
     db = SessionLocal()
 
     # Query the database for categorias
-    menus = db.query(DbMenu).filter(DbMenu.categoria == categoria2).all()
+    menus = db.query(DbMenu).filter(DbMenu.categoria_id == categoria2).all()
 
     # Close the session
     db.close()
@@ -341,7 +361,7 @@ def get_categories(categoria2):
     for menu in menus :
         vals = {}
         vals['nombre']=menu.nombre
-        vals['categoria']=menu.categoria 
+        vals['categoria']=menu.categoria_id 
         vals['descripcion']=menu.descripcion
         vals['preparacion']=menu.preparacion
         vals['ingredientes']=','.join(menu.ingredientes)
@@ -379,7 +399,7 @@ def update_menu(id: int, menu_update: Menu):
     return {
         "id": menu.id,
         "nombre": menu.nombre,
-        "categoria": menu.categoria,
+        "categoria": menu.categoria_id,
         "descripcion": menu.descripcion,
         "preparacion": menu.preparacion,
         "ingredientes": menu.ingredientes.split(','),
