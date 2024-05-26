@@ -9,7 +9,7 @@ import json
 import math
 
 
-SQLALCHEMY_DATABASE_URL = "postgresql://alex:usurero24@localhost/dev"
+SQLALCHEMY_DATABASE_URL = "postgresql://tobia:12345678@localhost/dev"
 engine = create_engine(SQLALCHEMY_DATABASE_URL)
 
 # Create a session
@@ -84,6 +84,9 @@ class Menu(BaseModel):
     emocion_resultante: Optional[str]
     numero_experiencias: Optional[int]
 
+class ExistingMenu(Menu):
+    id: int
+
 class Experiencia(BaseModel):
     usuario_id: Optional[int]
     menu_id: Optional[int]
@@ -97,7 +100,7 @@ class Experiencia(BaseModel):
     emocion_resultante: Optional[str]
 
 class MenuListResponse(BaseModel):
-    users: list[Menu]
+    users: list[ExistingMenu]
     total: int
     page: int
     per_page: int
@@ -161,7 +164,8 @@ def get_menus(
     offset = (page - 1) * per_page
     menus_query = db.query(DbMenu).offset(offset).limit(per_page)
     menus = [
-        Menu(
+        ExistingMenu(
+            id=m.id,
             nombre=m.nombre, 
             categoria_id=m.categoria_id, 
             descripcion=m.descripcion, 
@@ -445,11 +449,13 @@ def get_categories():
     db = SessionLocal()
 
     # Query the database for categorias
-    categorias = db.query(DbCategoria.categoria).distinct().all()
+    categorias = db.query(DbCategoria).distinct().all()
 
     # Close the session
     db.close()
 
+    print(categorias)
+
     return {
-        "categorias": [c[0] for c in categorias]
+        "categorias": [{"id": c.id, "categoria": c.categoria} for c in categorias]
     }
