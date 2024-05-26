@@ -206,19 +206,19 @@ def get_menu(id: int):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Menu not found")
 
-    return {
-        "id": menu.id,
-        "nombre": menu.nombre,
-        "categoria": menu.categoria_id,
-        "descripcion": menu.descripcion,
-        "preparacion": menu.preparacion,
-        "ingredientes": menu.ingredientes.split(','),
-        "foto": menu.foto,
-        "arousal_resultante": menu.arousal_resultante,
-        "valencia_resultante": menu.valencia_resultante,
-        "emocion_resultante": menu.emocion_resultante,
-        "numero_experiencias": menu.numero_experiencias
-    }
+    return ExistingMenu(
+        id=menu.id,
+        nombre=menu.nombre,
+        categoria_id= menu.categoria_id,
+        descripcion= menu.descripcion,
+        preparacion= menu.preparacion,
+        ingredientes= menu.ingredientes.split(','),
+        foto= menu.foto,
+        arousal_resultante= menu.arousal_resultante,
+        valencia_resultante= menu.valencia_resultante,
+        emocion_resultante= menu.emocion_resultante,
+        numero_experiencias= menu.numero_experiencias
+    )
 
 
 @app.post("/experiencia", status_code=201)
