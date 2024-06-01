@@ -72,6 +72,7 @@ class DbExperiencia(Base):
     valencia_resultante = Column('valencia_resultante', Float, unique=False, index=False)
     emocion_resultante = Column('emocion_resultante', String, unique=False, index=False)
 
+
 class Menu(BaseModel):
     nombre: Optional[str]
     categoria_id: Optional[int]
@@ -106,7 +107,7 @@ class MenuListResponse(BaseModel):
     per_page: int
 
 class Categoria(BaseModel):
-    Categoria: Optional[str]
+    categoria: Optional[str]
     descripcion: Optional[str]
 
 app = FastAPI()
@@ -459,3 +460,30 @@ def get_categories():
     return {
         "categorias": [{"id": c.id, "categoria": c.categoria} for c in categorias]
     }
+
+@app.get("/experianca_por_usuario_categoria", summary="Devuelve las experiencias seguna la categoria y usuario enviado por parametro")
+def get_experiencia(usuarioid, categoriaid):
+    # Create a new session
+    db = SessionLocal()
+
+    experiencias = db.query(DbExperiencia, DbMenu).join(DbMenu, DbExperiencia.menu_id==DbMenu.id).filter(DbExperiencia.usuario_id == usuarioid).filter(DbMenu.categoria_id==categoriaid).all()
+
+
+    # Close the session
+    db.close()
+
+    list_exp = []
+    
+    for exp, menu in experiencias :
+        vals = {}
+        vals['usuario_id']=exp.usuario_id,
+        vals['menu_id']=exp.menu_id,
+        vals['menu_plato']=menu.nombre,
+        vals['emocion_resultante']=exp.emocion_resultante,
+        vals['descripcion_plato']=menu.descripcion,
+        vals['preparacion_plato']=menu.preparacion,
+        vals['ingredientes_plato']=menu.ingredientes.split(','),
+        vals['foto']=menu.foto
+        list_exp.append(vals)
+        
+    return list_exp
