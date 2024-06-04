@@ -463,27 +463,45 @@ def get_categories():
 
 @app.get("/experianca_por_usuario_categoria", summary="Devuelve las experiencias seguna la categoria y usuario enviado por parametro")
 def get_experiencia(usuarioid, categoriaid):
+    list_exp = []
     # Create a new session
     db = SessionLocal()
-
-    experiencias = db.query(DbExperiencia, DbMenu).join(DbMenu, DbExperiencia.menu_id==DbMenu.id).filter(DbExperiencia.usuario_id == usuarioid).filter(DbMenu.categoria_id==categoriaid).all()
-
-
+    Lista_platos_por_categoria = db.query(DbMenu).filter(DbMenu.categoria_id==categoriaid).all()
     # Close the session
     db.close()
-
-    list_exp = []
     
-    for exp, menu in experiencias :
+    print (Lista_platos_por_categoria)
+
+    for plato in Lista_platos_por_categoria:
+        print(plato.nombre)
+        # Create a new session
+        db = SessionLocal()
+        experiencias = db.query(DbExperiencia, DbMenu).join(DbMenu, DbExperiencia.menu_id==DbMenu.id).filter(DbExperiencia.usuario_id == usuarioid).filter(DbExperiencia.menu_id==plato.id).all()
+        # Close the session
+        db.close()
+        #exp_resultante = DbExperiencia
         vals = {}
-        vals['usuario_id']=exp.usuario_id,
-        vals['menu_id']=exp.menu_id,
-        vals['menu_plato']=menu.nombre,
-        vals['emocion_resultante']=exp.emocion_resultante,
-        vals['descripcion_plato']=menu.descripcion,
-        vals['preparacion_plato']=menu.preparacion,
-        vals['ingredientes_plato']=menu.ingredientes.split(','),
-        vals['foto']=menu.foto
+        count = 0
+        valencia_res = 0
+        arousal_res = 0
+        for exp, menu in experiencias :
+            valencia_res = valencia_res + exp.valencia_resultante
+            arousal_res = arousal_res + exp.arousal_resultante
+            count = count + 1
+
+        vals = {
+            "id": menu.id,
+            "nombre": menu.nombre,
+            "categoria": menu.categoria_id,
+            "descripcion": menu.descripcion,
+            "preparacion": menu.preparacion,
+            "ingredientes": menu.ingredientes.split(','),
+            "arousal_resultante": arousal_res / count,
+            "valencia_resultante": valencia_res / count,
+            "emocion_resultante": get_emocion_resultante(valencia_res, arousal_res),
+            "numero_experiencias": count
+        }
         list_exp.append(vals)
-        
+    
+    
     return list_exp
