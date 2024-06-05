@@ -133,6 +133,8 @@ def calculate_angle(x, y):
 
 def update_average(current_average, count, new_value):
     # Calculate the new average
+    if(current_average is None):
+        current_average = 0
     new_average = (current_average * count + new_value) / (count + 1)
     
     return new_average
@@ -404,14 +406,15 @@ def update_menu(id: int, menu_update: Menu):
     return {
         "id": menu.id,
         "nombre": menu.nombre,
-        "categoria": menu.categoria_id,
+        "categoria_id": menu.categoria_id,
         "descripcion": menu.descripcion,
         "preparacion": menu.preparacion,
         "ingredientes": menu.ingredientes.split(','),
         "arousal_resultante": menu.arousal_resultante,
         "valencia_resultante": menu.valencia_resultante,
         "emocion_resultante": menu.emocion_resultante,
-        "numero_experiencias": menu.numero_experiencias
+        "numero_experiencias": menu.numero_experiencias,
+        "foto": menu.foto
     }
 
 
@@ -455,21 +458,19 @@ def get_categories():
     # Close the session
     db.close()
 
-    print(categorias)
-
     return {
         "categorias": [{"id": c.id, "categoria": c.categoria} for c in categorias]
     }
 
 @app.get("/experianca_por_usuario_categoria", summary="Devuelve las experiencias seguna la categoria y usuario enviado por parametro")
-def get_experiencia(usuarioid, categoriaid):
+def get_experiencia(usuarioid: int, categoriaid: int):
     list_exp = []
     # Create a new session
     db = SessionLocal()
     Lista_platos_por_categoria = db.query(DbMenu).filter(DbMenu.categoria_id==categoriaid).all()
     # Close the session
     db.close()
-    
+  
     print (Lista_platos_por_categoria)
 
     for plato in Lista_platos_por_categoria:
