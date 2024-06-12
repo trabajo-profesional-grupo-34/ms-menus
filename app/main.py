@@ -240,8 +240,15 @@ def create_experiencia(experiencia: Experiencia):
     if experiencia.emocion:
         new_exp.emocion_valencia, new_exp.emocion_arousal, _ = EMOTION_TO_VALENCE_AROUSAL[experiencia.emocion["dominant_emotion"]]
 
-    new_exp.valencia_resultante = (new_exp.emocion_valencia + new_exp.sam_valencia) / 2
-    new_exp.arousal_resultante = (new_exp.emocion_arousal + new_exp.sam_arousal) / 2
+    if new_exp.sam_valencia is None:
+        new_exp.valencia_resultante = new_exp.emocion_valencia
+    else:
+        new_exp.valencia_resultante = (new_exp.emocion_valencia + new_exp.sam_valencia) / 2
+
+    if new_exp.sam_arousal is None:
+        new_exp.arousal_resultante = new_exp.emocion_arousal
+    else:
+        new_exp.arousal_resultante = (new_exp.emocion_arousal + new_exp.sam_arousal) / 2
 
     new_exp.emocion_resultante = get_emocion_resultante(new_exp.valencia_resultante, new_exp.arousal_resultante)
 
@@ -480,7 +487,6 @@ def get_experiencia(usuarioid: int, categoriaid: int):
         experiencias = db.query(DbExperiencia, DbMenu).join(DbMenu, DbExperiencia.menu_id==DbMenu.id).filter(DbExperiencia.usuario_id == usuarioid).filter(DbExperiencia.menu_id==plato.id).all()
         # Close the session
         db.close()
-        #exp_resultante = DbExperiencia
         vals = {}
         count = 0
         valencia_res = 0
