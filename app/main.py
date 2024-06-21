@@ -9,7 +9,7 @@ import json
 import math
 
 
-SQLALCHEMY_DATABASE_URL = "postgresql://tobia:12345678@localhost/dev"
+SQLALCHEMY_DATABASE_URL = "postgresql://alex:usurero24@localhost/dev"
 engine = create_engine(SQLALCHEMY_DATABASE_URL)
 
 # Create a session
@@ -29,7 +29,17 @@ EMOTION_TO_VALENCE_AROUSAL = {
     "neutral": (0.0, 0.0, 0)
 }
 
-VALENCE_AROUSAL_TO_EMOTION = {v: k for k, v in EMOTION_TO_VALENCE_AROUSAL.items()}
+VALENCE_AROUSAL_TO_TASTE = {
+    "comun": (0, 360, 0, 0.25),
+    "exquisito": (0, 45, 0.25, 1.5),
+    "delicioso": (45, 90, 0.25, 1.5),
+    "feo": (90, 135, 0.25, 1.5),
+    "desagradable": (135, 180, 0.25, 1.5),
+    "pasado": (180, 225, 0.25, 1.5),
+    "insulso": (225, 270, 0.25, 1.5),
+    "relajante": (270, 315, 0.25, 1.5),
+    "sabroso": (315, 360, 0.25, 1.5),
+}
 
 # Define the Menu model
 class DbMenu(Base):
@@ -63,14 +73,19 @@ class DbExperiencia(Base):
     id = Column('id', Integer, primary_key=True)
     usuario_id = Column('usuario_id', Integer, unique=False, index=False)
     menu_id = Column('menu_id', Integer, unique=False, index=False)
-    emocion = Column('emocion', String, unique=False, index=False)
-    emocion_arousal = Column('emocion_arousal', Float, unique=False, index=False)
-    emocion_valencia = Column('emocion_valencia', Float, unique=False, index=False)
+    emocion_menu = Column('emocion_menu', String, unique=False, index=False)
+    arousal_menu = Column('arousal_menu', Float, unique=False, index=False)
+    valencia_menu = Column('valencia_menu', Float, unique=False, index=False)
+    emocion_plato = Column('emocion_plato', String, unique=False, index=False)
+    arousal_plato = Column('arousal_plato', Float, unique=False, index=False)
+    valencia_plato = Column('valencia_plato', Float, unique=False, index=False)
     sam_valencia = Column('sam_valencia', Float, unique=False, index=False)
     sam_arousal = Column('sam_arousal', Float, unique=False, index=False)
     arousal_resultante = Column('arousal_resultante', Float, unique=False, index=False)
     valencia_resultante = Column('valencia_resultante', Float, unique=False, index=False)
     emocion_resultante = Column('emocion_resultante', String, unique=False, index=False)
+    reseña = Column('reseña', String, unique=False, index=False)
+    api = Column('api', String, unique=False, index=False)
 
 
 class Menu(BaseModel):
@@ -91,17 +106,19 @@ class ExistingMenu(Menu):
 class Experiencia(BaseModel):
     usuario_id: Optional[int]
     menu_id: Optional[int]
-    emocion: Optional[dict]
-    emocion_arousal: Optional[float]
-    emocion_valencia: Optional[float]
+    emocion_menu: Optional[dict]
+    arousal_menu: Optional[float]
+    valencia_menu: Optional[float]
+    emocion_plato: Optional[dict]
+    arousal_plato: Optional[float]
+    valencia_plato: Optional[float]
     sam_valencia: Optional[float]
     sam_arousal: Optional[float]
-    arousal_resultante: Optional[float]
-    valencia_resultante: Optional[float]
-    emocion_resultante: Optional[str]
+    reseña: Optional[str]
+    api: Optional[str]
 
 class MenuListResponse(BaseModel):
-    users: list[ExistingMenu]
+    menus: list[ExistingMenu]
     total: int
     page: int
     per_page: int
@@ -113,13 +130,17 @@ class Categoria(BaseModel):
 app = FastAPI()
 
 def get_emocion_resultante(valence, arousal):
-    for (v, a, diff), emotion in VALENCE_AROUSAL_TO_EMOTION.items():
-        max_angle = calculate_angle(v, a)
-        angle = calculate_angle(valence, arousal)
-        if max_angle - diff < angle and angle <= max_angle:
-            return emotion
+    if valence == 0 and arousal == 0:
+        return "comun"
+
+    angle = calculate_angle(valence, arousal)
+    module = math.sqrt(valence * valence + arousal * arousal)
+    for taste, (min_angle, max_angle, min_module, max_module) in VALENCE_AROUSAL_TO_TASTE.items():
+        if min_module <= module and max_module > module:
+            if min_angle <= angle and max_angle > angle:
+                return taste
         
-    return 'unknow'
+    return 'undefined'
 
 
 def calculate_angle(x, y):
@@ -128,6 +149,9 @@ def calculate_angle(x, y):
     
     # Convert the angle to degrees
     angle_degrees = math.degrees(angle_radians)
+
+    if angle_degrees < 0:
+        angle_degrees += 360
     
     return angle_degrees
 
@@ -138,6 +162,17 @@ def update_average(current_average, count, new_value):
     new_average = (current_average * count + new_value) / (count + 1)
     
     return new_average
+
+def calculate_valence_arousal(emocion_json):
+    valence = emocion_json["happy"] * EMOTION_TO_VALENCE_AROUSAL["happy"][0] / 100
+    arousal = emocion_json["happy"] * EMOTION_TO_VALENCE_AROUSAL["happy"][1] / 100
+    del emocion_json["happy"]
+    del emocion_json["surprise"]
+    del emocion_json["neutral"]
+
+    highest_emotion_negative = sorted(emocion_json.items(), key=lambda item: item[1], reverse=True)[0]
+    valence_negative = highest_emotion_negative[1] * EMOTION_TO_VALENCE_AROUSAL[highest_emotion_negative[0]][0] / 100
+    return valence - valence_negative, arousal
 
 
 @app.exception_handler(HTTPException)
@@ -187,7 +222,7 @@ def get_menus(
     db.close()
 
     return MenuListResponse(
-        users=menus,
+        menus=menus,
         total=total_menus,
         page=page,
         per_page=per_page
@@ -232,23 +267,17 @@ def create_experiencia(experiencia: Experiencia):
     new_exp = DbExperiencia()
     # Create a new User object
     for field, value in experiencia.dict(exclude_unset=True).items():
-        if field == "emocion":
+        if field == "emocion_menu" or field == "emocion_plato":
             value = str(value)
 
         setattr(new_exp, field, value)
 
-    if experiencia.emocion:
-        new_exp.emocion_valencia, new_exp.emocion_arousal, _ = EMOTION_TO_VALENCE_AROUSAL[experiencia.emocion["dominant_emotion"]]
+    if experiencia.api == 'deepface':
+        new_exp.valencia_menu, new_exp.arousal_menu = calculate_valence_arousal(experiencia.emocion_menu["emotion"])
+        new_exp.valencia_plato, new_exp.arousal_plato = calculate_valence_arousal(experiencia.emocion_plato["emotion"])
 
-    if new_exp.sam_valencia is None:
-        new_exp.valencia_resultante = new_exp.emocion_valencia
-    else:
-        new_exp.valencia_resultante = (new_exp.emocion_valencia + new_exp.sam_valencia) / 2
-
-    if new_exp.sam_arousal is None:
-        new_exp.arousal_resultante = new_exp.emocion_arousal
-    else:
-        new_exp.arousal_resultante = (new_exp.emocion_arousal + new_exp.sam_arousal) / 2
+    new_exp.valencia_resultante = (new_exp.valencia_menu + new_exp.valencia_plato + new_exp.sam_valencia) / 3
+    new_exp.arousal_resultante = (new_exp.arousal_menu + new_exp.arousal_plato + new_exp.sam_arousal) / 3
 
     new_exp.emocion_resultante = get_emocion_resultante(new_exp.valencia_resultante, new_exp.arousal_resultante)
 
@@ -277,14 +306,19 @@ def create_experiencia(experiencia: Experiencia):
         "id": new_exp.id,
         "usuario_id": new_exp.usuario_id,
         "menu_id": new_exp.menu_id,
-        "emocion": json.loads(new_exp.emocion.replace("\'", "\"").replace("None", "null")),
-        "emocion_arousal": new_exp.emocion_arousal,
-        "emocion_valencia": new_exp.emocion_valencia,
+        "emocion_menu": json.loads(new_exp.emocion_menu.replace("\'", "\"").replace("None", "null")),
+        "arousal_menu": new_exp.arousal_menu,
+        "valencia_menu": new_exp.valencia_menu,
+        "emocion_plato": json.loads(new_exp.emocion_plato.replace("\'", "\"").replace("None", "null")),
+        "arousal_plato": new_exp.arousal_plato,
+        "valencia_plato": new_exp.valencia_plato,
         "sam_valencia": new_exp.sam_valencia,
         "sam_arousal": new_exp.sam_arousal,
         "arousal_resultante": new_exp.arousal_resultante,
         "valencia_resultante": new_exp.valencia_resultante,
-        "emocion_resultante": new_exp.emocion_resultante
+        "emocion_resultante": new_exp.emocion_resultante,
+        "reseña": new_exp.reseña,
+        "api": new_exp.api
     }
 
 
@@ -303,7 +337,7 @@ def create_menu(menu: Menu):
 
     new_menu.arousal_resultante = 0
     new_menu.valencia_resultante = 0
-    new_menu.emocion_resultante = "neutral"
+    new_menu.emocion_resultante = "comun"
     new_menu.numero_experiencias = 0
 
     # Add the new user to the session
@@ -469,7 +503,7 @@ def get_categories():
         "categorias": [{"id": c.id, "categoria": c.categoria} for c in categorias]
     }
 
-@app.get("/experianca_por_usuario_categoria", summary="Devuelve las experiencias seguna la categoria y usuario enviado por parametro")
+@app.get("/menu_por_usuario_categoria", summary="Devuelve las experiencias seguna la categoria y usuario enviado por parametro")
 def get_experiencia(usuarioid: int, categoriaid: int):
     list_exp = []
     # Create a new session
@@ -496,19 +530,19 @@ def get_experiencia(usuarioid: int, categoriaid: int):
             arousal_res = arousal_res + exp.arousal_resultante
             count = count + 1
 
-        vals = {
-            "id": menu.id,
-            "nombre": menu.nombre,
-            "categoria": menu.categoria_id,
-            "descripcion": menu.descripcion,
-            "preparacion": menu.preparacion,
-            "ingredientes": menu.ingredientes.split(','),
-            "arousal_resultante": arousal_res / count,
-            "valencia_resultante": valencia_res / count,
-            "emocion_resultante": get_emocion_resultante(valencia_res, arousal_res),
-            "numero_experiencias": count
-        }
-        list_exp.append(vals)
+            vals = {
+                "id": menu.id,
+                "nombre": menu.nombre,
+                "categoria": menu.categoria_id,
+                "descripcion": menu.descripcion,
+                "preparacion": menu.preparacion,
+                "ingredientes": menu.ingredientes.split(','),
+                "arousal_resultante": arousal_res / count,
+                "valencia_resultante": valencia_res / count,
+                "emocion_resultante": get_emocion_resultante(valencia_res, arousal_res),
+                "numero_experiencias": count
+            }
+            list_exp.append(vals)
     
     
     return list_exp

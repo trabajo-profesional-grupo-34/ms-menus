@@ -1,9 +1,9 @@
 # Import necessary modules
-from sqlalchemy import create_engine, MetaData, Table, Column, Integer, String, Float
+from sqlalchemy import create_engine, MetaData, Table, Column, Integer, String, Float, Date
 
 
 # Define the SQLAlchemy connection URL
-DATABASE_URL = "postgresql://tobia:12345678@localhost/dev"
+DATABASE_URL = "postgresql://alex:usurero24@localhost/dev"
 
 # Create an engine
 engine = create_engine(DATABASE_URL)
@@ -39,16 +39,22 @@ categoria = Table(
 experiencia = Table(
     'experiencia', metadata,
     Column('id', Integer, primary_key=True),
+    Column('fecha', Date, unique=False, index=False),
     Column('usuario_id', Integer, unique=False, index=False),
     Column('menu_id', Integer, unique=False, index=False),
-    Column('emocion', String, unique=False, index=False),
-    Column('emocion_arousal', Float, unique=False, index=False),
-    Column('emocion_valencia', Float, unique=False, index=False),
+    Column('emocion_menu', String, unique=False, index=False),
+    Column('arousal_menu', Float, unique=False, index=False),
+    Column('valencia_menu', Float, unique=False, index=False),
+    Column('emocion_plato', String, unique=False, index=False),
+    Column('arousal_plato', Float, unique=False, index=False),
+    Column('valencia_plato', Float, unique=False, index=False),
     Column('sam_valencia', Float, unique=False, index=False),
     Column('sam_arousal', Float, unique=False, index=False),
     Column('arousal_resultante', Float, unique=False, index=False),
     Column('valencia_resultante', Float, unique=False, index=False),
     Column('emocion_resultante', String, unique=False, index=False),
+    Column('reseña', String, unique=False, index=False),
+    Column('api', String, unique=False, index=False),
     schema='taca'  # Specify the schema name here
 )
 
