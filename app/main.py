@@ -530,19 +530,19 @@ def get_experiencia(usuarioid: int, categoriaid: int):
             arousal_res = arousal_res + exp.arousal_resultante
             count = count + 1
 
+        if count > 0:
             vals = {
-                "id": menu.id,
-                "nombre": menu.nombre,
-                "categoria": menu.categoria_id,
-                "descripcion": menu.descripcion,
-                "preparacion": menu.preparacion,
-                "ingredientes": menu.ingredientes.split(','),
+                "id": plato.id,
+                "nombre": plato.nombre,
+                "categoria": plato.categoria_id,
+                "descripcion": plato.descripcion,
+                "preparacion": plato.preparacion,
+                "ingredientes": plato.ingredientes.split(','),
                 "arousal_resultante": arousal_res / count,
                 "valencia_resultante": valencia_res / count,
                 "emocion_resultante": get_emocion_resultante(valencia_res, arousal_res),
                 "numero_experiencias": count
             }
             list_exp.append(vals)
-    
     
     return list_exp
