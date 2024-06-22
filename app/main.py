@@ -37,7 +37,7 @@ VALENCE_AROUSAL_TO_TASTE = {
     "desagradable": (135, 180, 0.25, 1.5),
     "pasado": (180, 225, 0.25, 1.5),
     "insulso": (225, 270, 0.25, 1.5),
-    "relajante": (270, 315, 0.25, 1.5),
+    "poco sabroso": (270, 315, 0.25, 1.5),
     "sabroso": (315, 360, 0.25, 1.5),
 }
 
