@@ -163,16 +163,17 @@ def update_average(current_average, count, new_value):
     
     return new_average
 
-def calculate_valence_arousal(emocion_json):
+def calculate_valence_arousal(emocion_json, dominant_emotion):
     valence = emocion_json["happy"] * EMOTION_TO_VALENCE_AROUSAL["happy"][0] / 100
-    arousal = emocion_json["happy"] * EMOTION_TO_VALENCE_AROUSAL["happy"][1] / 100
+    arousal = emocion_json[dominant_emotion] * EMOTION_TO_VALENCE_AROUSAL[dominant_emotion][1] / 100
     del emocion_json["happy"]
     del emocion_json["surprise"]
     del emocion_json["neutral"]
 
     highest_emotion_negative = sorted(emocion_json.items(), key=lambda item: item[1], reverse=True)[0]
     valence_negative = highest_emotion_negative[1] * EMOTION_TO_VALENCE_AROUSAL[highest_emotion_negative[0]][0] / 100
-    return valence - valence_negative, arousal
+    print(valence, arousal, valence_negative)
+    return valence + valence_negative, arousal
 
 
 @app.exception_handler(HTTPException)
@@ -273,8 +274,8 @@ def create_experiencia(experiencia: Experiencia):
         setattr(new_exp, field, value)
 
     if experiencia.api == 'deepface':
-        new_exp.valencia_menu, new_exp.arousal_menu = calculate_valence_arousal(experiencia.emocion_menu["emotion"])
-        new_exp.valencia_plato, new_exp.arousal_plato = calculate_valence_arousal(experiencia.emocion_plato["emotion"])
+        new_exp.valencia_menu, new_exp.arousal_menu = calculate_valence_arousal(experiencia.emocion_menu["emotion"], experiencia.emocion_menu["dominant_emotion"])
+        new_exp.valencia_plato, new_exp.arousal_plato = calculate_valence_arousal(experiencia.emocion_plato["emotion"], experiencia.emocion_menu["dominant_emotion"])
 
     new_exp.valencia_resultante = (new_exp.valencia_menu + new_exp.valencia_plato + new_exp.sam_valencia) / 3
     new_exp.arousal_resultante = (new_exp.arousal_menu + new_exp.arousal_plato + new_exp.sam_arousal) / 3
